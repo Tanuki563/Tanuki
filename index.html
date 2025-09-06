@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crypto Tanuki — Cozy Island Parody</title>
+  <style>
+    :root{ --ink:#222; }
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--ink);
+      background:none;
+      position:relative;
+      overflow-x:hidden;
+    }
+    /* SKY (top) */
+    body::before{
+      content:"";
+      position:fixed; z-index:-2; left:0; right:0; top:0; height:55vh;
+      background:radial-gradient(120% 90% at 50% -10%, #ffffff 0 35%, #e9f6ff 36% 60%, #cfeaff 100%);
+    }
+    /* PAGE GRASS (bottom) */
+    body::after{
+      content:"";
+      position:fixed; z-index:-2; left:0; right:0; bottom:0; height:58vh;
+      background:repeating-linear-gradient(-14deg,#bfe8a7 0 10px,#aee095 10px 20px);
+      background-blend-mode:multiply;
+    }
+
+    header{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;}
+    header .logo{display:flex;align-items:center;gap:6px;font-weight:700;font-size:1.1rem;}
+    header .logo img{width:28px;height:28px;border-radius:6px}
+    header nav{display:flex;gap:8px;}
+    header nav button{border:none;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:.9rem;color:#fff;}
+    header nav .pump{background:#27ae60;}
+    header nav .twitter{background:#f1c40f;color:#222;}
+    header nav .ca{background:#3498db;}
+    header nav .sound{background:#e74c3c;}
+
+    .banner{max-width:960px;margin:0 auto;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+    .banner img{display:block;width:100%;height:auto}
+
+    .gamecard{max-width:960px;margin:20px auto;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;}
+    .hud{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-weight:600;font-size:.9rem;background:#fafafa;border-bottom:1px solid #eee;}
+    #game{display:block;width:100%;height:clamp(420px,60vh,760px);background:#87ceeb;}
+    footer{max-width:960px;margin:20px auto;padding:14px;font-size:.9rem;line-height:1.4;color:#333;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <img src="coin-logo.png" alt="Coin Logo">
+      Crypto Tanuki <span style="font-size:.8rem;font-weight:600;background:#eee;padding:2px 6px;border-radius:6px">Parody</span>
+    </div>
+    <nav>
+      <button class="pump">Buy on Pump</button>
+      <button class="twitter">Follow on X</button>
+      <button class="ca">Copy CA</button>
+      <button class="sound">Sound</button>
+    </nav>
+  </header>
+
+  <div class="banner">
+    <img src="banner.png" alt="Banner">
+  </div>
+
+  <div class="gamecard">
+    <div class="hud">
+      <div>🪙 Coins: <span id="coins">0</span></div>
+      <div>Debt Repaid <progress id="debt" value="0" max="100"></progress></div>
+      <div>🎯 Goal: 100</div>
+    </div>
+    <canvas id="game"></canvas>
+  </div>
+
+  <footer>
+    <h3>About the Coin (Parody)</h3>
+    <p>Crypto Tanuki is a silly, tongue-in-cheek parody inspired by life-sim vibes — no affiliation with any franchise. Chill OST, collect shiny coins, and repay the tanuki banker!</p>
+    <ul>
+      <li>Transactions = fun memes, community fun; no promises, only vibes.</li>
+      <li>Utilities = coin collect mini-game + branded vibe site (nonprofit parody).</li>
+    </ul>
+    <p>Links: <a href="#">PumpFun</a> · <a href="#">Twitter/X</a></p>
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    /* ---------- renderer / scene / camera ---------- */
+    const canvas = document.querySelector('#game');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setClearColor(0x87ceeb);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
+
+    function resize(){
+      const r = canvas.getBoundingClientRect();
+      const pr = Math.min(devicePixelRatio||1, 2);
+      if (canvas.width !== Math.floor(r.width*pr) || canvas.height !== Math.floor(r.height*pr)) {
+        renderer.setPixelRatio(pr);
+        renderer.setSize(r.width, r.height, false);
+        camera.aspect = r.width / r.height;
+        camera.updateProjectionMatrix();
+      }
+    }
+    function resetCamera(){ camera.position.set(0,22,28); camera.lookAt(0,0,0); }
+    resize(); resetCamera();
+
+    /* ---------- simple reflective environment for metals ---------- */
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envScene = new THREE.Scene();
+    const room = new THREE.Mesh(
+      new THREE.BoxGeometry(50,30,50),
+      new Array(6).fill().map(()=>new THREE.MeshBasicMaterial({ color:0xffffff, side:THREE.BackSide }))
+    );
+    envScene.add(room);
+    scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+
+    /* ---------- lights ---------- */
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x6d8c6a, 1.0));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(28,36,18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024,1024);
+    sun.shadow.camera.left=-45; sun.shadow.camera.right=45;
+    sun.shadow.camera.top=45;  sun.shadow.camera.bottom=-45;
+    scene.add(sun);
+
+    /* ---------- helpers ---------- */
+    function canvasTex(painter, rx=1, ry=1){
+      const c = document.createElement('canvas'); c.width = c.height = 512;
+      const g = c.getContext('2d'); painter(g, c.width);
+      const t = new THREE.CanvasTexture(c);
+      if (rx>1 || ry>1){ t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); }
+      t.anisotropy = 8; return t;
+    }
+
+    /* ---------- island (light green) ---------- */
+    const islandRadius = 24;
+    const grassTex = canvasTex((g,s)=>{
+      const grd = g.createLinearGradient(0,0,0,s);
+      grd.addColorStop(0, '#baf7b1');
+      grd.addColorStop(1, '#8fe38c');
+      g.fillStyle = grd; g.fillRect(0,0,s,s);
+      g.globalAlpha=.20; g.fillStyle='#a7f0a1';
+      for(let x=-s;x<s*2;x+=26){ g.fillRect(x,0,14,s); }
+      g.globalAlpha=.28; const ring=g.createRadialGradient(s/2,s/2,s*.35,s/2,s/2,s*.50);
+      ring.addColorStop(0,'rgba(0,0,0,0)'); ring.addColorStop(1,'rgba(0,0,0,.14)');
+      g.fillStyle=ring; g.beginPath(); g.arc(s/2,s/2,s/2,0,Math.PI*2); g.fill();
+    },2,2);
+
+    const grass = new THREE.Mesh(
+      new THREE.CircleGeometry(islandRadius,96),
+      new THREE.MeshStandardMaterial({ map:grassTex, roughness:.95, metalness:0 })
+    );
+    grass.rotation.x = -Math.PI/2; grass.receiveShadow = true; scene.add(grass);
+
+    /* ---------- trees ---------- */
+    function addTree(x,z,seed=0){
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35,0.5,2.6,10),
+        new THREE.MeshStandardMaterial({ color:'#96623a', roughness:.9 })
+      );
+      trunk.position.y=1.3; trunk.castShadow=trunk.receiveShadow=true; g.add(trunk);
+
+      const greens=['#6fb874','#4f9b5f','#86ce8a'];
+      const mats=greens.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:0}));
+      function dome(r,h,i){ const m=new THREE.Mesh(new THREE.SphereGeometry(r,12,12),mats[i%3]); m.position.y=h; m.castShadow=m.receiveShadow=true; g.add(m); }
+      dome(0.95+Math.random()*0.2,2.35,seed+0);
+      dome(0.85+Math.random()*0.2,3.0,seed+1);
+      dome(0.75+Math.random()*0.2,2.75,seed+2);
+
+      g.position.set(x,0,z); scene.add(g);
+    }
+    for(let i=0;i<14;i++){ const r=10+Math.random()*12,a=Math.random()*Math.PI*2; addTree(Math.cos(a)*r,Math.sin(a)*r,i); }
+
+    /* ---------- BANK (restored) ---------- */
+    function addBank(){
+      const bank = new THREE.Group();
+      const stone = new THREE.MeshStandardMaterial({ color:'#ece6dc', roughness:.95 });
+      const stoneDark = new THREE.MeshStandardMaterial({ color:'#d7cec2', roughness:.95 });
+      const wood  = new THREE.MeshStandardMaterial({ color:'#9c8a78', roughness:.85 });
+      const gold  = new THREE.MeshStandardMaterial({ color:0xf1c40f, metalness:.7, roughness:.35 });
+
+      // steps
+      for(let i=0;i<3;i++){
+        const h=0.25;
+        const step = new THREE.Mesh(new THREE.BoxGeometry(7.2-i*0.6,h,5.2-i*0.6), stoneDark);
+        step.position.set(0,(i+1)*h,0.2); step.receiveShadow=step.castShadow=true; bank.add(step);
+      }
+      // body
+      const body = new THREE.Mesh(new THREE.BoxGeometry(6,3,4), stone);
+      body.position.y=1.95; body.castShadow=body.receiveShadow=true; bank.add(body);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.2,0.1), new THREE.MeshStandardMaterial({ color:'#403a34', roughness:.9 }));
+      door.position.set(0,1.6,2.06); bank.add(door);
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(6.1,0.35,0.5), stoneDark);
+      lintel.position.set(0,2.7,2.0); bank.add(lintel);
+
+      // columns
+      const colMat=new THREE.MeshStandardMaterial({ color:'#f5efe6', roughness:.9 });
+      [-2.4,-0.8,0.8,2.4].forEach(x=>{
+        const c=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,2.6,12),colMat);
+        c.position.set(x,1.6,1.85); c.castShadow=c.receiveShadow=true; bank.add(c);
+      });
+
+      // pediment + roof + emblem
+      const ped=new THREE.Mesh(new THREE.ConeGeometry(3.1,1.2,3), stoneDark);
+      ped.rotation.x=Math.PI/2; ped.scale.z=0.45; ped.position.set(0,3.25,2.05); bank.add(ped);
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(6.4,0.25,4.6), wood);
+      roof.position.set(0,3.25,0); roof.castShadow=roof.receiveShadow=true; bank.add(roof);
+      const emblem=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.12,24), gold);
+      emblem.rotation.x=Math.PI/2; emblem.position.set(0,3.22,2.38); bank.add(emblem);
+
+      // sign
+      const signTex=canvasTex((g,s)=>{ g.fillStyle='#c9b8a7'; g.fillRect(0,0,s,s);
+        g.fillStyle='#3d332a'; g.font='bold 240px Nunito,Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('BANK', s/2, s/2); });
+      const sign=new THREE.Sprite(new THREE.SpriteMaterial({ map:signTex, transparent:true }));
+      sign.scale.set(2.4,0.7,1); sign.position.set(0,2.9,2.41); bank.add(sign);
+
+      scene.add(bank);
+    }
+    addBank();
+
+    /* ---------- raccoon sprite ---------- */
+    let player;
+    function makeCanvasRaccoonTexture(){
+      return canvasTex((g,s)=>{
+        g.clearRect(0,0,s,s);
+        g.fillStyle='#7b5b43'; g.beginPath(); g.ellipse(s*0.5,s*0.62,s*0.22,s*0.32,0,0,Math.PI*2); g.fill();
+        g.beginPath(); g.ellipse(s*0.5,s*0.40,s*0.18,s*0.18,0,0,Math.PI*2); g.fill();
+        g.fillStyle='#2e2b29'; g.beginPath(); g.ellipse(s*0.5,s*0.40,s*0.20,s*0.12,0,0,Math.PI*2); g.fill();
+        g.fillStyle='#fff'; g.beginPath(); g.arc(s*0.46,s*0.40,s*0.028,0,Math.PI*2); g.arc(s*0.54,s*0.40,s*0.028,0,Math.PI*2); g.fill();
+        g.fillStyle='#222'; g.beginPath(); g.arc(s*0.46,s*0.40,s*0.014,0,Math.PI*2); g.arc(s*0.54,s*0.40,s*0.014,0,Math.PI*2); g.fill();
+      });
+    }
+    (function makePlayer(){
+      const tex=makeCanvasRaccoonTexture();
+      const mat=new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:true, depthWrite:false });
+      player=new THREE.Sprite(mat);
+      player.scale.set(3.2,3.2,1);
+      player.position.set(0,1.6,-7);
+      player.castShadow=true;
+      scene.add(player);
+    })();
+
+    /* ---------- coins ---------- */
+    const coins=[];
+    const coinMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      metalness: 1.0,
+      roughness: 0.22,
+      envMap: scene.environment,
+      envMapIntensity: 1.6,
+      emissive: 0x2a1500,
+      emissiveIntensity: 0.08
+    });
+    const coinGeo = new THREE.CylinderGeometry(0.6,0.6,0.18,64);
+
+    function spawnCoin(x,z){
+      const c = new THREE.Mesh(coinGeo, coinMat);
+      c.position.set(x, 0.62, z);
+      c.rotation.set(0, Math.random()*Math.PI*2, 0);
+      c.castShadow = c.receiveShadow = true;
+      scene.add(c); coins.push(c);
+    }
+    for(let i=0;i<28;i++){
+      let r,a,x,z;
+      do{ r=4+Math.random()*(islandRadius-2); a=Math.random()*Math.PI*2;
+          x=Math.cos(a)*r; z=Math.sin(a)*r; }
+      while(Math.hypot(x,z) < 5.7);
+      spawnCoin(x,z);
+    }
+
+    /* ---------- HUD + movement ---------- */
+    let coinCount=0;
+    const hudCoins=document.getElementById('coins');
+    const hudDebt=document.getElementById('debt');
+    const keys={}; addEventListener('keydown',e=>keys[e.code]=true); addEventListener('keyup',e=>keys[e.code]=false);
+
+    function movePlayer(dt){
+      if(!player) return;
+      const spd=(keys['Space']?8:4)*dt;
+      let vx=0,vz=0;
+      if(keys['KeyW']||keys['ArrowUp']) vz-=1;
+      if(keys['KeyS']||keys['ArrowDown']) vz+=1;
+      if(keys['KeyA']||keys['ArrowLeft']) vx-=1;
+      if(keys['KeyD']||keys['ArrowRight']) vx+=1;
+      if(vx||vz){
+        const len=Math.hypot(vx,vz)||1; vx/=len; vz/=len;
+        player.position.x+=vx*spd; player.position.z+=vz*spd;
+        const r=Math.hypot(player.position.x,player.position.z);
+        if(r>islandRadius-1.2){ const s=(islandRadius-1.2)/r; player.position.x*=s; player.position.z*=s; }
+      }
+      if(player.isSprite) player.lookAt(camera.position.x, player.position.y, camera.position.z);
+    }
+
+    function checkCoins(){
+      if(!player) return;
+      for(const c of coins){
+        if(!c.visible) continue;
+        const dx=player.position.x - c.position.x;
+        const dz=player.position.z - c.position.z;
+        if(dx*dx + dz*dz < 1.2*1.2){
+          c.visible=false;
+          coinCount++; hudCoins.textContent=coinCount; hudDebt.value=Math.min(100, coinCount);
+        }
+      }
+    }
+
+    /* ---------- loop ---------- */
+    const clock=new THREE.Clock();
+    function animate(){
+      requestAnimationFrame(animate);
+      const dt=Math.min(0.033, clock.getDelta());
+      for(const c of coins){ if(c.visible) c.rotation.y += 5*dt; }
+      movePlayer(dt); checkCoins();
+      camera.lookAt(0,0,0);
+      resize();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
