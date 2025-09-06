@@ -63,7 +63,7 @@
   </header>
 
   <div class="banner">
-    <img src="banner.png" alt="Banner">
+    <img id="banner-img" src="banner.png" alt="Banner">
   </div>
 
   <div class="gamecard">
@@ -82,11 +82,41 @@
       <li>Transactions = fun memes, community fun; no promises, only vibes.</li>
       <li>Utilities = coin collect mini-game + branded vibe site (nonprofit parody).</li>
     </ul>
-    <p>Links: <a href="#">PumpFun</a> · <a href="#">Twitter/X</a></p>
+    <p>Links: <a id="footer-pump" href="#" target="_blank" rel="noopener">PumpFun</a> · <a id="footer-twitter" href="#" target="_blank" rel="noopener">Twitter/X</a></p>
   </footer>
+
+  <!-- 🔧 SIMPLE CONFIG: edit these three values only -->
+  <script>
+    window.TANUKI_CONFIG = {
+      pump: "https://pump.fun/coin/xxxxxxxxxxxxxxxx",   // Pump.fun link
+      twitter: "https://x.com/YourHandle",              // Twitter/X link
+      ca: "YOUR_CONTRACT_ADDRESS_HERE"                  // Contract address (copied by the CA button)
+    };
+  </script>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    /* ---------- LINKS CONFIG WIRING ---------- */
+    const cfg = window.TANUKI_CONFIG || {};
+    // Header buttons
+    document.querySelector("button.pump").onclick = () => cfg.pump && window.open(cfg.pump, "_blank");
+    document.querySelector("button.twitter").onclick = () => cfg.twitter && window.open(cfg.twitter, "_blank");
+    document.querySelector("button.ca").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(cfg.ca || "");
+        alert(`CA copied${cfg.ca ? `:\n${cfg.ca}` : "!"}`);
+      } catch {
+        prompt("Copy contract address:", cfg.ca || "");
+      }
+    };
+    document.querySelector("button.sound").onclick = () => alert("Sound toggle coming soon!");
+
+    // Footer links
+    const fPump = document.getElementById("footer-pump");
+    const fTw   = document.getElementById("footer-twitter");
+    if (cfg.pump) fPump.href = cfg.pump;
+    if (cfg.twitter) fTw.href = cfg.twitter;
 
     /* ---------- renderer / scene / camera ---------- */
     const canvas = document.querySelector('#game');
@@ -182,7 +212,7 @@
     }
     for(let i=0;i<14;i++){ const r=10+Math.random()*12,a=Math.random()*Math.PI*2; addTree(Math.cos(a)*r,Math.sin(a)*r,i); }
 
-    /* ---------- BANK (restored) ---------- */
+    /* ---------- BANK ---------- */
     function addBank(){
       const bank = new THREE.Group();
       const stone = new THREE.MeshStandardMaterial({ color:'#ece6dc', roughness:.95 });
